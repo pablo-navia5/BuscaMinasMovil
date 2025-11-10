@@ -71,6 +71,8 @@ class MainActivity : ComponentActivity() {
         var minas by remember { mutableStateOf(generarMinas()) }
         var textoFinal by remember { mutableStateOf("") }
         var juegoTerminado by remember { mutableStateOf(false) }
+        var ponerBandera by remember { mutableStateOf(false) }
+        var colores by remember {mutableStateOf(MutableList(100) {Color.DarkGray}) }
 
         Column(
             modifier = Modifier
@@ -101,6 +103,7 @@ class MainActivity : ComponentActivity() {
                     minas = generarMinas()
                     juegoTerminado = false
                     textoFinal = ""
+                    colores = MutableList(100) {Color.DarkGray}
                 }) {
                     Text("Reiniciar juego", fontSize = 15.sp)
                 }
@@ -121,27 +124,38 @@ class MainActivity : ComponentActivity() {
                     items(100) { index ->
                         Button(
                             onClick = {
-                                if (!juegoTerminado) {
-                                    textos = textos.toMutableList().also { nuevosTextos ->
-                                        if (minas[index]) {
-                                            juegoTerminado = true
-                                            nuevosTextos[index] = "💣"
-                                            textoFinal = "Has tocado una bomba. Perdiste"
-                                            mostrarBombas(nuevosTextos, minas)
-                                        } else {
-                                            revelarCasillas(index, nuevosTextos, minas)
-                                        }
-                                    }
-                                    if (juegoGanado(textos)) {
-                                        textoFinal = "Juego terminado has ganado"
-                                        mostrarBombas(textos, minas)
-                                        juegoTerminado = true
-                                    }
+                                if (juegoTerminado) return@Button
+
+                                val nuevosTextos = textos.toMutableList()
+                                val nuevosColores = colores.toMutableList()
+
+                                if (ponerBandera) {
+                                    nuevosTextos[index] = if (nuevosTextos[index] == "🚩") "" else "🚩" // toggle bandera
+                                    textos = nuevosTextos
+                                    return@Button
+                                }
+
+                                if (minas[index]) {
+                                    juegoTerminado = true
+                                    nuevosTextos[index] = "💣"
+                                    textoFinal = "Has tocado una bomba. Perdiste"
+                                    mostrarBombas(nuevosTextos, minas)
+                                } else {
+                                    revelarCasillas(index, nuevosTextos, minas, nuevosColores)
+                                }
+
+                                colores = nuevosColores
+                                textos = nuevosTextos
+
+                                if (juegoGanado(nuevosTextos)) {
+                                    textoFinal = "Juego terminado has ganado"
+                                    mostrarBombas(nuevosTextos, minas)
+                                    juegoTerminado = true
                                 }
                             },
                             shape = RectangleShape,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.DarkGray,
+                                containerColor = colores[index],
                                 contentColor = Color.White
                             ),
                             contentPadding = PaddingValues(0.dp),
@@ -159,6 +173,28 @@ class MainActivity : ComponentActivity() {
                     .height(40.dp)
             )
 
+            Row (
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Button(
+                    onClick = {
+                        ponerBandera = !ponerBandera
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (ponerBandera) Color.Green else Color.Blue
+                    )
+
+                ) {
+                    Text(
+                        "Pulsa para poner bandera 🚩",
+                        fontSize = 15.sp
+                    )
+                }
+
+            }
+
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -171,22 +207,20 @@ class MainActivity : ComponentActivity() {
     }
 
     // Dado un index y el array de textos pone cuantas minas hay alrededor y llama de forma recursiva en caso de que no haya ninguna cerca.
-    fun revelarCasillas(
-        index: Int,
-        textosActuales: MutableList<String>,
-        minas: MutableList<Boolean>
-    ) {
+    fun revelarCasillas(index: Int, textosActuales: MutableList<String>, minas: MutableList<Boolean>, colores: MutableList<Color>) {
         // Si ya está revelada vuelve
         if (textosActuales[index].isNotEmpty()) return
 
         // Calcula cuántas minas hay alrededor
         val cantidad = cantidadMinasVecinas(index, minas)
+
         if (cantidad == 0) {
             textosActuales[index] = " "
+            colores[index] = Color.Gray
         } else {
             textosActuales[index] = cantidad.toString() //pone en los textos cuantas minas hay
+            colores[index] = Color.Gray
         }
-
 
         // Si no hay minas vecinas revela sus vecinas
         if (cantidad == 0) {
@@ -203,7 +237,7 @@ class MainActivity : ComponentActivity() {
                     if (nuevaFila in 0..9 && nuevaColumna in 0..9) {
                         val nuevoIndex = nuevaFila * 10 + nuevaColumna
                         if (!minas[nuevoIndex]) { //si no hay una mina llama recursivamente a la funcion
-                            revelarCasillas(nuevoIndex, textosActuales, minas)
+                            revelarCasillas(nuevoIndex, textosActuales, minas, colores)
                         }
                     }
                 }
@@ -220,7 +254,7 @@ class MainActivity : ComponentActivity() {
     fun juegoGanado(textos: MutableList<String>): Boolean {
         var cantidadPulsados = 0
         for (i in 0..textos.size - 1) {
-            if (textos[i].isNotEmpty()) cantidadPulsados++
+            if (textos[i].isNotEmpty() && textos[i] != "🚩") cantidadPulsados++
         }
         if (cantidadPulsados >= (100 - CANTIDADBOMBAS)) return true
         else return false
@@ -267,7 +301,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun GreetingPreview() {
         BuscaminasTheme {
-
+            BuscaMinas(navController = rememberNavController())
         }
     }
 }
