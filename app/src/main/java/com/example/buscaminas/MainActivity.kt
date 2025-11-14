@@ -1,5 +1,4 @@
 package com.example.buscaminas
-
 import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -19,8 +18,11 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,18 +32,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.buscaminas.ui.theme.BuscaminasTheme
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlin.random.Random
 
 class MainActivity : ComponentActivity() {
-    val CANTIDADBOMBAS = 15
+    var CANTIDADBOMBAS = 10
+    var TAMANO = 10
+    var TOTAL = 100
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -67,12 +73,12 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("MutableCollectionMutableState")
     @Composable
     fun BuscaMinas(navController: NavController) {
-        var textos by remember { mutableStateOf(MutableList(100) { "" }) }
+        var textos by remember { mutableStateOf(MutableList(TOTAL) { "" }) }
         var minas by remember { mutableStateOf(generarMinas()) }
         var textoFinal by remember { mutableStateOf("") }
         var juegoTerminado by remember { mutableStateOf(false) }
         var ponerBandera by remember { mutableStateOf(false) }
-        var colores by remember {mutableStateOf(MutableList(100) {Color.DarkGray}) }
+        var colores by remember { mutableStateOf(MutableList(TOTAL) { Color.DarkGray }) }
 
         Column(
             modifier = Modifier
@@ -99,11 +105,11 @@ class MainActivity : ComponentActivity() {
                     .fillMaxWidth()
             ) {
                 Button(onClick = {
-                    textos = MutableList(100) { "" }
+                    textos = MutableList(TOTAL) { "" }
                     minas = generarMinas()
                     juegoTerminado = false
                     textoFinal = ""
-                    colores = MutableList(100) {Color.DarkGray}
+                    colores = MutableList(TOTAL) { Color.DarkGray }
                 }) {
                     Text("Reiniciar juego", fontSize = 15.sp)
                 }
@@ -116,12 +122,12 @@ class MainActivity : ComponentActivity() {
 
             Row {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(10),
+                    columns = GridCells.Fixed(TAMANO),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = Modifier.padding(4.dp)
                 ) {
-                    items(100) { index ->
+                    items(TOTAL) { index ->
                         Button(
                             onClick = {
                                 if (juegoTerminado) return@Button
@@ -130,7 +136,8 @@ class MainActivity : ComponentActivity() {
                                 val nuevosColores = colores.toMutableList()
 
                                 if (ponerBandera) {
-                                    nuevosTextos[index] = if (nuevosTextos[index] == "🚩") "" else "🚩" // toggle bandera
+                                    nuevosTextos[index] =
+                                        if (nuevosTextos[index] == "🚩") "" else "🚩" // toggle bandera
                                     textos = nuevosTextos
                                     return@Button
                                 }
@@ -173,7 +180,7 @@ class MainActivity : ComponentActivity() {
                     .height(40.dp)
             )
 
-            Row (
+            Row(
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -206,8 +213,109 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @Composable
+    fun PantallaInicial(navController: NavHostController) {
+        var textoCarga by remember { mutableStateOf("") }
+        var nombre by remember { mutableStateOf("") }
+        var expanded by remember {mutableStateOf(false)}
+        var textoTablero by remember {mutableStateOf("Selecciona tamaño")}
+
+        Column (
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(4.dp, 60.dp, 4.dp, 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+
+        ){
+            Text(
+                "Juego del buscaminas", fontSize = 20.sp
+            )
+
+            Spacer(modifier = Modifier
+                .height(30.dp)
+            )
+
+            TextField (
+                value = nombre,
+                onValueChange ={ nombre = it },
+                placeholder ={Text("Nombre")},
+                textStyle = TextStyle(fontSize = 15.sp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+
+                Button(
+                    onClick = {
+                        expanded = true
+                    }
+                ) {
+                    Text(textoTablero, fontSize = 18.sp)
+                }
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Tamaño 3x3") },
+                        onClick = {
+                            expanded = false
+                            TAMANO = 3
+                            CANTIDADBOMBAS = 3
+                            TOTAL = 3 * 3
+                            textoTablero = "Tamaño 3x3"
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Tamaño 5x5") },
+                        onClick = {
+                            expanded = false
+                            TAMANO = 5
+                            CANTIDADBOMBAS = 5
+                            TOTAL = 5 * 5
+                            textoTablero = "Tamaño 5x5"
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Tamaño 10x10") },
+                        onClick = {
+                            expanded = false
+                            TAMANO = 10
+                            CANTIDADBOMBAS = 10
+                            TOTAL = 10 * 10
+                            textoTablero = "Tamaño 10x10"
+                        }
+                    )
+                }
+            }
+
+            Button(
+                onClick = {
+                    textoCarga = "Cargando ..."
+                    navController.navigate("juego")
+                }
+            ){
+                Text("Iniciar juego", fontSize = 18.sp)
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+
+            Text (textoCarga, fontSize = 20.sp)
+        }
+    }
+
     // Dado un index y el array de textos pone cuantas minas hay alrededor y llama de forma recursiva en caso de que no haya ninguna cerca.
-    fun revelarCasillas(index: Int, textosActuales: MutableList<String>, minas: MutableList<Boolean>, colores: MutableList<Color>) {
+    fun revelarCasillas(
+        index: Int,
+        textosActuales: MutableList<String>,
+        minas: MutableList<Boolean>,
+        colores: MutableList<Color>
+    ) {
         // Si ya está revelada vuelve
         if (textosActuales[index].isNotEmpty()) return
 
@@ -224,8 +332,8 @@ class MainActivity : ComponentActivity() {
 
         // Si no hay minas vecinas revela sus vecinas
         if (cantidad == 0) {
-            val fila = index / 10
-            val columna = index % 10
+            val fila = index / TAMANO
+            val columna = index % TAMANO
 
             //doble for que recorre las casillas vecinas
             for (filaRelativa in -1..1) {
@@ -234,8 +342,8 @@ class MainActivity : ComponentActivity() {
                     val nuevaFila = fila + filaRelativa
                     val nuevaColumna = columna + columnaRelativa
 
-                    if (nuevaFila in 0..9 && nuevaColumna in 0..9) {
-                        val nuevoIndex = nuevaFila * 10 + nuevaColumna
+                    if (nuevaFila in 0 until TAMANO && nuevaColumna in 0 until TAMANO) {
+                        val nuevoIndex = nuevaFila * TAMANO + nuevaColumna
                         if (!minas[nuevoIndex]) { //si no hay una mina llama recursivamente a la funcion
                             revelarCasillas(nuevoIndex, textosActuales, minas, colores)
                         }
@@ -256,15 +364,15 @@ class MainActivity : ComponentActivity() {
         for (i in 0..textos.size - 1) {
             if (textos[i].isNotEmpty() && textos[i] != "🚩") cantidadPulsados++
         }
-        if (cantidadPulsados >= (100 - CANTIDADBOMBAS)) return true
+        if (cantidadPulsados >= (TOTAL - CANTIDADBOMBAS)) return true
         else return false
     }
 
     fun generarMinas(): MutableList<Boolean> {
-        val lista = MutableList(100) { false }
+        val lista = MutableList(TOTAL) { false }
         repeat(CANTIDADBOMBAS) {
-            var pos = Random.nextInt(0, 100)
-            while (lista[pos]) pos = Random.nextInt(0, 100)
+            var pos = Random.nextInt(0, TOTAL)
+            while (lista[pos]) pos = Random.nextInt(0, TOTAL)
             lista[pos] = true
         }
         return lista
@@ -274,8 +382,8 @@ class MainActivity : ComponentActivity() {
     fun cantidadMinasVecinas(index: Int, minas: MutableList<Boolean>): Int {
         var cantidadMinas = 0
 
-        val fila = index / 10
-        val columna = index % 10
+        val fila = index / TAMANO
+        val columna = index % TAMANO
 
         // Recorremos las 8 posiciones vecinas
         for (filaRelativa in -1..1) { //recorre las 3 filas
@@ -287,21 +395,13 @@ class MainActivity : ComponentActivity() {
                 val nuevaColumna = columna + columnaRelativa
 
                 // Verifica que este dentro de los limites del tablero
-                if (nuevaFila in 0..9 && nuevaColumna in 0..9) {
+                if (nuevaFila in 0 until TAMANO && nuevaColumna in 0 until TAMANO) {
                     val nuevoIndex =
-                        nuevaFila * 10 + nuevaColumna //creo el nuevo index del array la fila es *10 porque cada fila tiene 10 columnas.
+                        nuevaFila * TAMANO + nuevaColumna //creo el nuevo index del array la fila es *10 porque cada fila tiene 10 columnas.
                     if (minas[nuevoIndex]) cantidadMinas++ //si hay mina se suma
                 }
             }
         }
         return cantidadMinas
-    }
-
-    @Preview(showBackground = true)
-    @Composable
-    fun GreetingPreview() {
-        BuscaminasTheme {
-            BuscaMinas(navController = rememberNavController())
-        }
     }
 }
