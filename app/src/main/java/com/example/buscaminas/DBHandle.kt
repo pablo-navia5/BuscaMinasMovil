@@ -23,7 +23,7 @@ class DBHandler
         val query = ("CREATE TABLE " + TABLE_NAME + " ("
                 + ID_COL + " INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + NAME_COL + " TEXT,"
-                + PRICE_COL + " DOUBLE)")
+                + DAY_COL + " TEXT)")
 
         // at last we are calling a exec sql
         // method to execute above sql query
@@ -32,9 +32,9 @@ class DBHandler
 
     // this method is use to add new
     // course to our sqlite database.
-    fun addNewProduct(
-        productName: String?,
-        productPrice: Double?,
+    fun addNewVictoria(
+        jugador: String?,
+        fecha: String?,
     ) {
 
         // on below line we are creating a variable for
@@ -48,8 +48,8 @@ class DBHandler
 
         // on below line we are passing all values
         // along with its key and value pair.
-        values.put(NAME_COL, productName)
-        values.put(PRICE_COL, productPrice)
+        values.put(NAME_COL, jugador)
+        values.put(DAY_COL, fecha)
 
         // after adding all values we are passing
         // content values to our table.
@@ -68,7 +68,7 @@ class DBHandler
     }
 
 
-    fun readProducts(): ArrayList<R.integer> {
+    fun readVictorias(): ArrayList<Victoria> {
         // on below line we are creating a
         // database for reading our database.
         val db = this.readableDatabase
@@ -78,19 +78,19 @@ class DBHandler
         val cursorProducts: Cursor = db.rawQuery("SELECT * FROM $TABLE_NAME", null)
 
         // on below line we are creating a new array list.
-        val courseModalArrayList: ArrayList<R.integer> = ArrayList()
+        val courseModalArrayList: ArrayList<Victoria> = ArrayList()
 
         // moving our cursor to first position.
         if (cursorProducts.moveToFirst()) {
             do {
                 // on below line we are adding the
                 // data from cursor to our array list.
-//                courseModalArrayList.add(
-////                    ProductModal(
-////                        cursorProducts.getString(1),
-////                        cursorProducts.getDouble(2)
-////                    )
-//                )
+              courseModalArrayList.add(
+                  Victoria(
+                        cursorProducts.getString(1),
+                        cursorProducts.getString(2)
+                    )
+                )
             } while (cursorProducts.moveToNext())
             // moving our cursor to next.
         }
@@ -109,21 +109,21 @@ class DBHandler
     companion object {
         // creating a constant variables for our database.
         // below variable is for our database name.
-        private const val DB_NAME = "productosdb"
+        private const val DB_NAME = "victoriasdb"
 
         // below int is our database version
         private const val DB_VERSION = 1
 
         // below variable is for our table name.
-        private const val TABLE_NAME = "productos"
+        private const val TABLE_NAME = "victorias"
 
         // below variable is for our id column.
         private const val ID_COL = "id"
 
         // below variable is for our product name column
-        private const val NAME_COL = "name"
+        private const val NAME_COL = "jugador"
 
         // below variable id for our product price column.
-        private const val PRICE_COL = "precio"
+        private const val DAY_COL = "fecha"
     }
 }

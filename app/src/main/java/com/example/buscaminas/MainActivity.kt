@@ -1,10 +1,12 @@
 package com.example.buscaminas
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,7 +25,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -45,7 +46,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.buscaminas.ui.theme.BuscaminasTheme
@@ -54,6 +54,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.delay
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.random.Random
 
 class MainActivity : ComponentActivity() {
@@ -61,6 +64,8 @@ class MainActivity : ComponentActivity() {
     var TAMANO = 10
     var TOTAL = 100
     var GANADO = false
+    var NOMBRE = ""
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -71,10 +76,10 @@ class MainActivity : ComponentActivity() {
 
                     NavHost(
                         navController = navController,
-                        startDestination = "final",
+                        startDestination = "inicial",
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        composable("juego") { BuscaMinas(navController) }
+                        composable("juego") { BuscaMinas(LocalContext.current,navController) }
                         composable("inicial") { PantallaInicial(navController) }
                         composable("final") { PantallaFinal(LocalContext.current, navController) }
                     }
@@ -84,15 +89,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("MutableCollectionMutableState")
     @Composable
-    fun BuscaMinas(navController: NavController) {
+    fun BuscaMinas(context: Context, navController: NavController) {
         var textos by remember { mutableStateOf(MutableList(TOTAL) { "" }) }
         var minas by remember { mutableStateOf(generarMinas()) }
         var textoFinal by remember { mutableStateOf("") }
         var juegoTerminado by remember { mutableStateOf(false) }
         var ponerBandera by remember { mutableStateOf(false) }
         var colores by remember { mutableStateOf(MutableList(TOTAL) { Color.DarkGray }) }
+        val dbHandler = DBHandler(context)
+        GANADO = false
 
         Column(
             modifier = Modifier
@@ -159,8 +167,9 @@ class MainActivity : ComponentActivity() {
                                 if (minas[index]) {
                                     juegoTerminado = true
                                     nuevosTextos[index] = "💣"
-                                    textoFinal = "Has tocado una bomba. Perdiste"
                                     mostrarBombas(nuevosTextos, minas)
+                                    GANADO = false
+                                    navController.navigate("final")
                                 } else {
                                     revelarCasillas(index, nuevosTextos, minas, nuevosColores)
                                 }
@@ -169,9 +178,12 @@ class MainActivity : ComponentActivity() {
                                 textos = nuevosTextos
 
                                 if (juegoGanado(nuevosTextos)) {
-                                    textoFinal = "Juego terminado has ganado"
                                     mostrarBombas(nuevosTextos, minas)
                                     juegoTerminado = true
+                                    GANADO = true
+                                    dbHandler.addNewVictoria(NOMBRE, LocalDateTime.now().format(
+                                        DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")))
+                                    navController.navigate("final")
                                 }
                             },
                             shape = RectangleShape,
@@ -229,10 +241,9 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun PantallaFinal(context: Context, navController: NavHostController) {
-        //var victorias by remember {}
         val dbHandler = DBHandler(context)
-        val refreshTrigger = remember { mutableStateOf(0) }
-        val victorias = remember(refreshTrigger.value) { dbHandler.readProducts() }
+        val victoriasList: List<Victoria>
+        victoriasList = dbHandler.readVictorias()
 
         Column (
             modifier = Modifier
@@ -241,7 +252,7 @@ class MainActivity : ComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                "Has perdido. Intentalo de nuevo.",
+                if(GANADO) "Has ganado ENHORABUENA" else "Has perdido. Intentalo de nuevo.",
                 fontSize = 30.sp,
                 color = if(GANADO) Color(0xFF4CAF50) else Color(0xFFF44336),
                 fontWeight = FontWeight.ExtraBold,
@@ -253,10 +264,14 @@ class MainActivity : ComponentActivity() {
             LazyColumn(
 
             ) {
-                itemsIndexed(victorias) { victoria, _ ->
-                    Text(
-                        victorias[victoria]
-                    )
+                itemsIndexed(victoriasList) { victoria, _ ->
+                    Row {
+                        Text(
+                            victoriasList[victoria].nombre + "    " +
+                                    victoriasList[victoria].fechaGanado
+                        )
+                    }
+
                 }
             }
 
@@ -277,7 +292,7 @@ class MainActivity : ComponentActivity() {
 
                 Button(
                     onClick = {
-                        navController.navigate("inicio")
+                        navController.navigate("inicial")
 
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Blue),
@@ -386,6 +401,7 @@ class MainActivity : ComponentActivity() {
             Button(
                 onClick = {
                     textoCarga = "Cargando ..."
+                    NOMBRE = nombre
                     navController.navigate("juego")
                 }
             ){
