@@ -1,5 +1,6 @@
 package com.example.buscaminas
 import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,12 +15,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -32,7 +41,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,6 +60,7 @@ class MainActivity : ComponentActivity() {
     var CANTIDADBOMBAS = 10
     var TAMANO = 10
     var TOTAL = 100
+    var GANADO = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -58,11 +71,12 @@ class MainActivity : ComponentActivity() {
 
                     NavHost(
                         navController = navController,
-                        startDestination = "inicial",
+                        startDestination = "final",
                         modifier = Modifier.fillMaxSize()
                     ) {
                         composable("juego") { BuscaMinas(navController) }
                         composable("inicial") { PantallaInicial(navController) }
+                        composable("final") { PantallaFinal(LocalContext.current, navController) }
                     }
                 }
 
@@ -214,11 +228,75 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
+    fun PantallaFinal(context: Context, navController: NavHostController) {
+        //var victorias by remember {}
+        val dbHandler = DBHandler(context)
+        val refreshTrigger = remember { mutableStateOf(0) }
+        val victorias = remember(refreshTrigger.value) { dbHandler.readProducts() }
+
+        Column (
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(4.dp, 60.dp, 4.dp, 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "Has perdido. Intentalo de nuevo.",
+                fontSize = 30.sp,
+                color = if(GANADO) Color(0xFF4CAF50) else Color(0xFFF44336),
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            LazyColumn(
+
+            ) {
+                itemsIndexed(victorias) { victoria, _ ->
+                    Text(
+                        victorias[victoria]
+                    )
+                }
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Button(
+                    onClick = {
+                        navController.navigate("juego")
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Green),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Reiniciar partida")
+                }
+
+                Spacer(modifier = Modifier.width(30.dp))
+
+                Button(
+                    onClick = {
+                        navController.navigate("inicio")
+
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Blue),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Volver al inicio")
+                }
+            }
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
     fun PantallaInicial(navController: NavHostController) {
         var textoCarga by remember { mutableStateOf("") }
         var nombre by remember { mutableStateOf("") }
         var expanded by remember {mutableStateOf(false)}
         var textoTablero by remember {mutableStateOf("Selecciona tamaño")}
+        val dimensiones = listOf("3x3", "5x5", "10x10")
 
         Column (
             modifier = Modifier
@@ -239,60 +317,71 @@ class MainActivity : ComponentActivity() {
                 value = nombre,
                 onValueChange ={ nombre = it },
                 placeholder ={Text("Nombre")},
-                textStyle = TextStyle(fontSize = 15.sp)
+                textStyle = TextStyle(fontSize = 15.sp),
+                modifier = Modifier.width(330.dp)
             )
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
             ) {
-
-                Button(
-                    onClick = {
-                        expanded = true
-                    }
-                ) {
-                    Text(textoTablero, fontSize = 18.sp)
-                }
-
-                DropdownMenu(
+                ExposedDropdownMenuBox(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onExpandedChange = { expanded = !expanded },
+                    modifier = Modifier.width(330.dp)
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Tamaño 3x3") },
-                        onClick = {
-                            expanded = false
-                            TAMANO = 3
-                            CANTIDADBOMBAS = 3
-                            TOTAL = 3 * 3
-                            textoTablero = "Tamaño 3x3"
-                        }
+                    OutlinedTextField(
+                        value = textoTablero,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Tamaño del tablero") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
 
-                    DropdownMenuItem(
-                        text = { Text("Tamaño 5x5") },
-                        onClick = {
-                            expanded = false
-                            TAMANO = 5
-                            CANTIDADBOMBAS = 5
-                            TOTAL = 5 * 5
-                            textoTablero = "Tamaño 5x5"
-                        }
-                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("3x3") },
+                            onClick = {
+                                textoTablero = "3x3"
+                                expanded = false
+                                TAMANO = 3
+                                TOTAL = 3*3
+                                CANTIDADBOMBAS = 3
+                            },
+                        )
 
-                    DropdownMenuItem(
-                        text = { Text("Tamaño 10x10") },
-                        onClick = {
-                            expanded = false
-                            TAMANO = 10
-                            CANTIDADBOMBAS = 10
-                            TOTAL = 10 * 10
-                            textoTablero = "Tamaño 10x10"
-                        }
-                    )
+                        DropdownMenuItem(
+                            text = { Text("5X5") },
+                            onClick = {
+                                textoTablero = "5x5"
+                                expanded = false
+                                TAMANO = 5
+                                TOTAL = 5*5
+                                CANTIDADBOMBAS = 5
+                            },
+                        )
+
+                        DropdownMenuItem(
+                            text = { Text("10X10") },
+                            onClick = {
+                                textoTablero = "10x10"
+                                expanded = false
+                                TAMANO = 10
+                                TOTAL = 10*10
+                                CANTIDADBOMBAS = 10
+                            },
+                        )
+                    }
                 }
             }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             Button(
                 onClick = {
@@ -308,6 +397,7 @@ class MainActivity : ComponentActivity() {
             Text (textoCarga, fontSize = 20.sp)
         }
     }
+
 
     // Dado un index y el array de textos pone cuantas minas hay alrededor y llama de forma recursiva en caso de que no haya ninguna cerca.
     fun revelarCasillas(
